@@ -123,7 +123,7 @@ namespace diskann {
         std::vector<Neighbor> &      best_L_nodes);
 
     void get_expanded_nodes(const size_t node, const unsigned Lindex,
-                            std::vector<unsigned>     init_ids,
+                            std::vector<unsigned> &   init_ids,
                             std::vector<Neighbor> &   expanded_nodes_info,
                             tsl::robin_set<unsigned> &expanded_nodes_ids);
 
@@ -177,7 +177,7 @@ namespace diskann {
     Distance<T> *_distance;
     unsigned     _width;
     unsigned     _ep;
-    bool         _saturate_graph = false;
+    bool         _saturate_graph = false; // true if want to complement out edges to max degree
     std::vector<std::mutex> _locks;  // Per node lock, cardinality=max_points_
 
     char * _opt_graph;

@@ -357,6 +357,9 @@ namespace diskann {
   /* This function finds out the navigating node, which is the medoid node
    * in the graph.
    */
+  /*
+   * cmli: use _dim instead of _aligned_dim to reduce calculate, why not use _distance to do distance calculation?
+   */
   template<typename T, typename TagT>
   unsigned Index<T, TagT>::calculate_entry_point() {
     // allocate and init centroid
@@ -498,7 +501,7 @@ namespace diskann {
   template<typename T, typename TagT>
   void Index<T, TagT>::get_expanded_nodes(
       const size_t node_id, const unsigned Lindex,
-      std::vector<unsigned>     init_ids,
+      std::vector<unsigned> &     init_ids,
       std::vector<Neighbor> &   expanded_nodes_info,
       tsl::robin_set<unsigned> &expanded_nodes_ids) {
     const T *             node_coords = _data + _aligned_dim * node_id;
@@ -538,14 +541,14 @@ namespace diskann {
 
       while (result.size() < degree && (start) < pool.size() && start < maxc) {
         auto &p = pool[start];
-        if (occlude_factor[start] > cur_alpha) {
+        if (occlude_factor[start] > cur_alpha) { // current baseline
           start++;
           continue;
         }
-        occlude_factor[start] = std::numeric_limits<float>::max();
+        occlude_factor[start] = std::numeric_limits<float>::max(); // mark as picked neighbor
         result.push_back(p);
         for (unsigned t = start + 1; t < pool.size() && t < maxc; t++) {
-          if (occlude_factor[t] > alpha)
+          if (occlude_factor[t] > alpha) // baseline
             continue;
           float djk = _distance->compare(
               _data + _aligned_dim * (size_t) pool[t].id,
@@ -555,7 +558,7 @@ namespace diskann {
         }
         start++;
       }
-      cur_alpha *= 1.2;
+      cur_alpha *= 1.2; // slack the baseline
     }
   }
 
@@ -587,7 +590,7 @@ namespace diskann {
      */
     pruned_list.clear();
     assert(result.size() <= range);
-    for (auto iter : result) {
+    for (auto &iter : result) {
       if (iter.id != location)
         pruned_list.emplace_back(iter.id);
     }
@@ -606,6 +609,10 @@ namespace diskann {
    * This function tries to add reverse links from all the visited nodes to
    * the current node n.
    */
+  /*
+   * cmli: add n to the neighbor list of each of his neighbor, if his neighbor's neighbor list is
+   * exceed slack_factor * range, not prune n's neighbor immediately, mark in array need_to_sync
+   */
   template<typename T, typename TagT>
   void Index<T, TagT>::batch_inter_insert(
       unsigned n, const std::vector<unsigned> &pruned_list,
@@ -614,7 +621,7 @@ namespace diskann {
 
     // assert(!src_pool.empty());
 
-    for (auto des : pruned_list) {
+    for (auto &des : pruned_list) {
       if (des == n)
         continue;
       /* des.id is the id of the neighbors of n */
@@ -628,7 +635,7 @@ namespace diskann {
         if (std::find(_final_graph[des].begin(), _final_graph[des].end(), n) ==
             _final_graph[des].end()) {
           _final_graph[des].push_back(n);
-          if (_final_graph[des].size() > (unsigned) (range * SLACK_FACTOR))
+          if (_final_graph[des].size() > (unsigned) (range * SLACK_FACTOR)) // cmli: delay and reduce the prune procedure
             need_to_sync[des] = 1;
         }
       }  // des lock is released by this point
@@ -638,6 +645,10 @@ namespace diskann {
   /* inter_insert():
    * This function tries to add reverse links from all the visited nodes to
    * the current node n.
+   */
+  /*
+   * cmli: add n to the neighbor list of each of his neighbor, if his neighbor's neighbor list is
+   * exceed slack_factor * range, prune n's neighbor immediately
    */
   template<typename T, typename TagT>
   void Index<T, TagT>::inter_insert(unsigned n,
@@ -650,7 +661,7 @@ namespace diskann {
 
     assert(!src_pool.empty());
 
-    for (auto des : src_pool) {
+    for (auto &des : src_pool) {
       /* des.id is the id of the neighbors of n */
       assert(des >= 0 && des < _max_points);
       /* des_pool contains the neighbors of the neighbors of n */
@@ -686,7 +697,7 @@ namespace diskann {
         dummy_visited.reserve(reserveSize);
         dummy_pool.reserve(reserveSize);
 
-        for (auto cur_nbr : copy_of_neighbors) {
+        for (auto &cur_nbr : copy_of_neighbors) {
           if (dummy_visited.find(cur_nbr) == dummy_visited.end() &&
               cur_nbr != des) {
             float dist =
@@ -703,7 +714,7 @@ namespace diskann {
           LockGuard guard(_locks[des]);
           // DELETE IN-EDGES FROM IN_GRAPH USING APPROPRIATE LOCKS
           _final_graph[des].clear();
-          for (auto new_nbr : new_out_neighbors) {
+          for (auto &new_nbr : new_out_neighbors) {
             _final_graph[des].emplace_back(new_nbr);
             if (update_in_graph) {
               _in_graph[new_nbr].emplace_back(des);
@@ -786,7 +797,7 @@ namespace diskann {
     unique_start_points.insert(_ep);
 
     std::vector<unsigned> init_ids;
-    for (auto pt : unique_start_points)
+    for (auto &pt : unique_start_points)
       init_ids.emplace_back(pt);
 
     diskann::Timer link_timer;
@@ -835,7 +846,7 @@ namespace diskann {
            * pool.
            */
           if (!_final_graph[node].empty())
-            for (auto id : _final_graph[node]) {
+            for (auto &id : _final_graph[node]) {
               if (visited.find(id) == visited.end() && id != node) {
                 float dist =
                     _distance->compare(_data + _aligned_dim * (size_t) node,
@@ -852,6 +863,9 @@ namespace diskann {
 
 // prune_neighbors will check pool, and remove some of the points and
 // create a cut_graph, which contains neighbors for point n
+        /*
+         * cmli: add pruned neighbors to target node's neighbor list
+         */
 #pragma omp parallel for schedule(dynamic, 64)
         for (_s64 node_ctr = (_s64) start_id; node_ctr < (_s64) end_id;
              ++node_ctr) {
@@ -859,11 +873,15 @@ namespace diskann {
           size_t                 node_offset = node_ctr - start_id;
           std::vector<unsigned> &pruned_list = pruned_list_vector[node_offset];
           _final_graph[node].clear();
-          for (auto id : pruned_list)
+          for (auto &id : pruned_list)
             _final_graph[node].emplace_back(id);
         }
         s = std::chrono::high_resolution_clock::now();
 
+        /*
+         * cmli: add target node to his pruned neighbors' neighbor list, which may cause some neighbor list of node's
+         * neighbor exceed limitation, so mark need prune and do it next.
+         */
 #pragma omp parallel for schedule(dynamic, 64)
         for (_s64 node_ctr = start_id; node_ctr < (_s64) end_id; ++node_ctr) {
           auto                   node = visit_order[node_ctr];
@@ -875,6 +893,9 @@ namespace diskann {
           pruned_list.shrink_to_fit();
         }
 
+        /*
+         * delay prune
+         */
 #pragma omp parallel for schedule(dynamic, 65536)
         for (_s64 node_ctr = 0; node_ctr < (_s64)(visit_order.size());
              node_ctr++) {
@@ -886,7 +907,7 @@ namespace diskann {
             std::vector<Neighbor>    dummy_pool(0);
             std::vector<unsigned>    new_out_neighbors;
 
-            for (auto cur_nbr : _final_graph[node]) {
+            for (auto &cur_nbr : _final_graph[node]) {
               if (dummy_visited.find(cur_nbr) == dummy_visited.end() &&
                   cur_nbr != node) {
                 float dist =
@@ -900,7 +921,7 @@ namespace diskann {
             prune_neighbors(node, dummy_pool, parameters, new_out_neighbors);
 
             _final_graph[node].clear();
-            for (auto id : new_out_neighbors)
+            for (auto &id : new_out_neighbors)
               _final_graph[node].emplace_back(id);
           }
         }
@@ -922,7 +943,7 @@ namespace diskann {
           sync_time = 0;
           inter_time = 0;
           inter_count = 0;
-          progress_counter += 5;
+          progress_counter += 5; // cmli: process percentage
         }
       }
 // Gopal. Splittng diskann_dll into separate DLLs for search and build.
