@@ -42,16 +42,12 @@ void gen_random_slice(const std::string base_file,
                       const std::string output_prefix, double sampling_rate) {
   _u64            read_blk_size = 64 * 1024 * 1024;
   cached_ifstream base_reader(base_file.c_str(), read_blk_size);
-  std::ofstream sample_writer(std::string(output_prefix + "_data.bin").c_str(),
-                              std::ios::binary);
-  std::ofstream sample_id_writer(
-      std::string(output_prefix + "_ids.bin").c_str(), std::ios::binary);
+  std::ofstream sample_writer(std::string(output_prefix + "_data.bin").c_str(), std::ios::binary);
+  std::ofstream sample_id_writer(std::string(output_prefix + "_ids.bin").c_str(), std::ios::binary);
 
-  std::random_device
-               rd;  // Will be used to obtain a seed for the random number engine
+  std::random_device rd;  // Will be used to obtain a seed for the random number engine
   auto         x = rd();
-  std::mt19937 generator(
-      x);  // Standard mersenne_twister_engine seeded with rd()
+  std::mt19937 generator(x);  // Standard mersenne_twister_engine seeded with rd()
   std::uniform_real_distribution<float> distribution(0, 1);
 
   size_t   npts, nd;
@@ -626,22 +622,17 @@ int shard_data_into_clusters(const std::string data_file, float *pivots,
     return -1;
   }
 
-  std::unique_ptr<size_t[]> shard_counts =
-      std::make_unique<size_t[]>(num_centers);
+  std::unique_ptr<size_t[]> shard_counts = std::make_unique<size_t[]>(num_centers);
   std::vector<std::ofstream> shard_data_writer(num_centers);
   std::vector<std::ofstream> shard_idmap_writer(num_centers);
   _u32                       dummy_size = 0;
   _u32                       const_one = 1;
 
   for (size_t i = 0; i < num_centers; i++) {
-    std::string data_filename =
-        prefix_path + "_subshard-" + std::to_string(i) + ".bin";
-    std::string idmap_filename =
-        prefix_path + "_subshard-" + std::to_string(i) + "_ids_uint32.bin";
-    shard_data_writer[i] =
-        std::ofstream(data_filename.c_str(), std::ios::binary);
-    shard_idmap_writer[i] =
-        std::ofstream(idmap_filename.c_str(), std::ios::binary);
+    std::string data_filename = prefix_path + "_subshard-" + std::to_string(i) + ".bin";
+    std::string idmap_filename = prefix_path + "_subshard-" + std::to_string(i) + "_ids_uint32.bin";
+    shard_data_writer[i] = std::ofstream(data_filename.c_str(), std::ios::binary);
+    shard_idmap_writer[i] = std::ofstream(idmap_filename.c_str(), std::ios::binary);
     shard_data_writer[i].write((char *) &dummy_size, sizeof(uint32_t));
     shard_data_writer[i].write((char *) &basedim32, sizeof(uint32_t));
     shard_idmap_writer[i].write((char *) &dummy_size, sizeof(uint32_t));
@@ -775,8 +766,7 @@ int partition_with_ram_budget(const std::string data_file,
   int  num_parts = 3;
   bool fit_in_ram = false;
 
-  gen_random_slice<T>(data_file, sampling_rate, train_data_float, num_train,
-                      train_dim);
+  gen_random_slice<T>(data_file, sampling_rate, train_data_float, num_train, train_dim);
 
   float *pivot_data = nullptr;
 

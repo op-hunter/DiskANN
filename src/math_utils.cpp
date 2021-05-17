@@ -410,8 +410,7 @@ namespace kmeans {
 
 #pragma omp parallel for schedule(static, 8192)
     for (int64_t i = 0; i < (_s64) num_points; i++) {
-      dist[i] =
-          math_utils::calc_distance(data + i * dim, data + init_id * dim, dim);
+      dist[i] = math_utils::calc_distance(data + i * dim, data + init_id * dim, dim);
     }
 
     double dart_val;

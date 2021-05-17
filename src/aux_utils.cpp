@@ -351,8 +351,7 @@ namespace diskann {
     size_t base_num, base_dim;
     diskann::get_bin_metadata(base_file, base_num, base_dim);
 
-    double full_index_ram =
-        ESTIMATE_RAM_USAGE(base_num, base_dim, sizeof(T), R);
+    double full_index_ram = ESTIMATE_RAM_USAGE(base_num, base_dim, sizeof(T), R);
     if (full_index_ram < ram_budget * 1024 * 1024 * 1024) {
       diskann::cout << "Full index fits in RAM, building in one shot"
                     << std::endl;
@@ -365,9 +364,7 @@ namespace diskann {
       paras.Set<bool>("saturate_graph", 1);
       paras.Set<std::string>("save_path", mem_index_path);
 
-      std::unique_ptr<diskann::Index<T>> _pvamanaIndex =
-          std::unique_ptr<diskann::Index<T>>(
-              new diskann::Index<T>(_compareMetric, base_file.c_str()));
+      std::unique_ptr<diskann::Index<T>> _pvamanaIndex = std::unique_ptr<diskann::Index<T>>(new diskann::Index<T>(_compareMetric, base_file.c_str()));
       _pvamanaIndex->build(paras);
       _pvamanaIndex->save(mem_index_path.c_str());
       std::remove(medoids_file.c_str());
@@ -375,18 +372,18 @@ namespace diskann {
       return 0;
     }
     std::string merged_index_prefix = mem_index_path + "_tempFiles";
-    int         num_parts =
-        partition_with_ram_budget<T>(base_file, sampling_rate, ram_budget,
-                                     2 * R / 3, merged_index_prefix, 2);
+    // cmli: sampling_rate = min(1.0, 1500000 / num_points)
+    // do the global sample by *sampling_rate*, iteration from 3, do k-means++, than do global sample by 1% and divide to 2-nearest
+    // cluster, than estimate the size of each cluster and continue the iteration incrementally until the biggest
+    // cluster is under the *ram_budget*. Than shards data into *num_parts* clusters and generate relative bin files.
+    int num_parts = partition_with_ram_budget<T>(base_file, sampling_rate, ram_budget, 2 * R / 3, merged_index_prefix, 2);
 
     std::string cur_centroid_filepath = merged_index_prefix + "_centroids.bin";
     std::rename(cur_centroid_filepath.c_str(), centroids_file.c_str());
 
     for (int p = 0; p < num_parts; p++) {
-      std::string shard_base_file =
-          merged_index_prefix + "_subshard-" + std::to_string(p) + ".bin";
-      std::string shard_index_file =
-          merged_index_prefix + "_subshard-" + std::to_string(p) + "_mem.index";
+      std::string shard_base_file = merged_index_prefix + "_subshard-" + std::to_string(p) + ".bin";
+      std::string shard_index_file = merged_index_prefix + "_subshard-" + std::to_string(p) + "_mem.index";
 
       diskann::Parameters paras;
       paras.Set<unsigned>("L", L);
@@ -410,12 +407,9 @@ namespace diskann {
 
     // delete tempFiles
     for (int p = 0; p < num_parts; p++) {
-      std::string shard_base_file =
-          merged_index_prefix + "_subshard-" + std::to_string(p) + ".bin";
-      std::string shard_id_file = merged_index_prefix + "_subshard-" +
-                                  std::to_string(p) + "_ids_uint32.bin";
-      std::string shard_index_file =
-          merged_index_prefix + "_subshard-" + std::to_string(p) + "_mem.index";
+      std::string shard_base_file = merged_index_prefix + "_subshard-" + std::to_string(p) + ".bin";
+      std::string shard_id_file = merged_index_prefix + "_subshard-" + std::to_string(p) + "_ids_uint32.bin";
+      std::string shard_index_file = merged_index_prefix + "_subshard-" + std::to_string(p) + "_mem.index";
       std::remove(shard_base_file.c_str());
       std::remove(shard_id_file.c_str());
       std::remove(shard_index_file.c_str());
@@ -675,55 +669,43 @@ namespace diskann {
 
     diskann::get_bin_metadata(dataFilePath, points_num, dim);
 
-    size_t num_pq_chunks =
-        (size_t)(std::floor)(_u64(final_index_ram_limit / points_num));
+    size_t num_pq_chunks = (size_t)(std::floor)(_u64(final_index_ram_limit / points_num));
 
     num_pq_chunks = num_pq_chunks <= 0 ? 1 : num_pq_chunks;
     num_pq_chunks = num_pq_chunks > dim ? dim : num_pq_chunks;
-    num_pq_chunks =
-        num_pq_chunks > MAX_PQ_CHUNKS ? MAX_PQ_CHUNKS : num_pq_chunks;
+    num_pq_chunks = num_pq_chunks > MAX_PQ_CHUNKS ? MAX_PQ_CHUNKS : num_pq_chunks;
 
     diskann::cout << "Compressing " << dim << "-dimensional data into "
                   << num_pq_chunks << " bytes per vector." << std::endl;
 
     size_t train_size, train_dim;
-    float *train_data;
+    float *train_data; // to train pq codebook
 
     double p_val = ((double) TRAINING_SET_SIZE / (double) points_num);
     // generates random sample and sets it to train_data and updates
     // train_size
-    gen_random_slice<T>(dataFilePath, p_val, train_data, train_size,
-    train_dim);
+    // cmli: uniformity sampling no more than min(TRAINING_SET_SIZE, points_num) points to get pq codebook
+    gen_random_slice<T>(dataFilePath, p_val, train_data, train_size, train_dim);
 
-    diskann::cout << "Training data loaded of size " << train_size <<
-    std::endl;
+    diskann::cout << "Training data loaded of size " << train_size << std::endl;
 
-    generate_pq_pivots(train_data, train_size, (uint32_t) dim, 256,
-                       (uint32_t) num_pq_chunks, 15, pq_pivots_path);
-    generate_pq_data_from_pivots<T>(dataFilePath, 256, (uint32_t)
-    num_pq_chunks,
-                                    pq_pivots_path,
-                                    pq_compressed_vectors_path);
+    generate_pq_pivots(train_data, train_size, (uint32_t) dim, 256, (uint32_t) num_pq_chunks, 15, pq_pivots_path);
+    generate_pq_data_from_pivots<T>(dataFilePath, 256, (uint32_t)num_pq_chunks, pq_pivots_path, pq_compressed_vectors_path);
 
     delete[] train_data;
 
     train_data = nullptr;
 
-    diskann::build_merged_vamana_index<T>(
-        dataFilePath, _compareMetric, L, R, p_val, indexing_ram_budget,
-        mem_index_path, medoids_path, centroids_path);
+    diskann::build_merged_vamana_index<T>(dataFilePath, _compareMetric, L, R, p_val, indexing_ram_budget, mem_index_path, medoids_path, centroids_path);
 
-    diskann::create_disk_layout<T>(dataFilePath, mem_index_path,
-                                   disk_index_path);
+    diskann::create_disk_layout<T>(dataFilePath, mem_index_path, disk_index_path);
 
     double sample_sampling_rate = (150000.0 / points_num);
-    gen_random_slice<T>(dataFilePath, sample_base_prefix,
-    sample_sampling_rate);
+    gen_random_slice<T>(dataFilePath, sample_base_prefix, sample_sampling_rate);
 
     std::remove(mem_index_path.c_str());
 
-    auto                          e =
-    std::chrono::high_resolution_clock::now();
+    auto e = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = e - s;
     diskann::cout << "Indexing time: " << diff.count() << std::endl;
 
