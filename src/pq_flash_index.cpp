@@ -566,11 +566,9 @@ namespace diskann {
                             const char *disk_index_file) {
 #endif
     std::string pq_table_bin = std::string(pq_prefix) + "_pivots.bin";
-    std::string pq_compressed_vectors =
-        std::string(pq_prefix) + "_compressed.bin";
+    std::string pq_compressed_vectors = std::string(pq_prefix) + "_compressed.bin";
     std::string medoids_file = std::string(disk_index_file) + "_medoids.bin";
-    std::string centroids_file =
-        std::string(disk_index_file) + "_centroids.bin";
+    std::string centroids_file = std::string(disk_index_file) + "_centroids.bin";
 
     size_t pq_file_dim, pq_file_num_centroids;
 #ifdef EXEC_ENV_OLS
@@ -595,8 +593,7 @@ namespace diskann {
     diskann::load_bin<_u8>(files, pq_compressed_vectors, this->data, npts_u64,
                            nchunks_u64);
 #else
-    diskann::load_bin<_u8>(pq_compressed_vectors, this->data, npts_u64,
-                           nchunks_u64);
+    diskann::load_bin<_u8>(pq_compressed_vectors, this->data, npts_u64, nchunks_u64);
 #endif
 
     this->num_points = npts_u64;
@@ -886,8 +883,7 @@ namespace diskann {
         }
         diskann::cout << std::endl;
   */
-      while (marker < cur_list_size && frontier.size() < beam_width &&
-             num_seen < beam_width + 2) {
+      while (marker < cur_list_size && frontier.size() < beam_width && num_seen < beam_width + 2) {
         if (retset[marker].flag) {
           num_seen++;
           auto iter = nhood_cache.find(retset[marker].id);

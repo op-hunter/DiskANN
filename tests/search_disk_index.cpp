@@ -89,8 +89,7 @@ int search_disk_index(int argc, char** argv) {
   else
     diskann::cout << " beamwidth: " << beamwidth << std::endl;
 
-  diskann::load_aligned_bin<T>(query_bin, query, query_num, query_dim,
-                               query_aligned_dim);
+  diskann::load_aligned_bin<T>(query_bin, query, query_num, query_dim, query_aligned_dim);
 
   if (file_exists(truthset_bin)) {
     diskann::load_truthset(truthset_bin, gt_ids, gt_dists, gt_num, gt_dim);

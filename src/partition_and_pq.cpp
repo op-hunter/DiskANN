@@ -641,11 +641,9 @@ int shard_data_into_clusters(const std::string data_file, float *pivots,
   }
 
   size_t block_size = num_points <= BLOCK_SIZE ? num_points : BLOCK_SIZE;
-  std::unique_ptr<_u32[]> block_closest_centers =
-      std::make_unique<_u32[]>(block_size * k_base);
+  std::unique_ptr<_u32[]> block_closest_centers = std::make_unique<_u32[]>(block_size * k_base);
   std::unique_ptr<T[]> block_data_T = std::make_unique<T[]>(block_size * dim);
-  std::unique_ptr<float[]> block_data_float =
-      std::make_unique<float[]>(block_size * dim);
+  std::unique_ptr<float[]> block_data_float = std::make_unique<float[]>(block_size * dim);
 
   size_t num_blocks = DIV_ROUND_UP(num_points, block_size);
 
@@ -667,10 +665,8 @@ int shard_data_into_clusters(const std::string data_file, float *pivots,
       for (size_t p1 = 0; p1 < k_base; p1++) {
         size_t   shard_id = block_closest_centers[p * k_base + p1];
         uint32_t original_point_map_id = (uint32_t)(start_id + p);
-        shard_data_writer[shard_id].write(
-            (char *) (block_data_T.get() + p * dim), sizeof(T) * dim);
-        shard_idmap_writer[shard_id].write((char *) &original_point_map_id,
-                                           sizeof(uint32_t));
+        shard_data_writer[shard_id].write((char *) (block_data_T.get() + p * dim), sizeof(T) * dim);
+        shard_idmap_writer[shard_id].write((char *) &original_point_map_id, sizeof(uint32_t));
         shard_counts[shard_id]++;
       }
     }
