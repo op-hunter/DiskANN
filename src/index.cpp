@@ -827,7 +827,7 @@ namespace diskann {
         auto s = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> diff;
 
-#pragma omp parallel for schedule(dynamic)
+//#pragma omp parallel for schedule(dynamic)
         for (_s64 node_ctr = (_s64) start_id; node_ctr < (_s64) end_id;
              ++node_ctr) {
           auto                     node = visit_order[node_ctr];
@@ -866,7 +866,7 @@ namespace diskann {
         /*
          * cmli: add pruned neighbors to target node's neighbor list
          */
-#pragma omp parallel for schedule(dynamic, 64)
+//#pragma omp parallel for schedule(dynamic, 64)
         for (_s64 node_ctr = (_s64) start_id; node_ctr < (_s64) end_id;
              ++node_ctr) {
           _u64                   node = visit_order[node_ctr];
@@ -882,7 +882,7 @@ namespace diskann {
          * cmli: add target node to his pruned neighbors' neighbor list, which may cause some neighbor list of node's
          * neighbor exceed limitation, so mark need prune and do it next.
          */
-#pragma omp parallel for schedule(dynamic, 64)
+//#pragma omp parallel for schedule(dynamic, 64)
         for (_s64 node_ctr = start_id; node_ctr < (_s64) end_id; ++node_ctr) {
           auto                   node = visit_order[node_ctr];
           _u64                   node_offset = node_ctr - start_id;
@@ -896,7 +896,7 @@ namespace diskann {
         /*
          * delay prune
          */
-#pragma omp parallel for schedule(dynamic, 65536)
+//#pragma omp parallel for schedule(dynamic, 65536)
         for (_s64 node_ctr = 0; node_ctr < (_s64)(visit_order.size());
              node_ctr++) {
           auto node = visit_order[node_ctr];

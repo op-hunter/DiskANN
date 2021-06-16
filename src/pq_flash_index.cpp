@@ -972,9 +972,7 @@ namespace diskann {
                 (cur_list_size == l_search))
               continue;
             Neighbor nn(id, dist, true);
-            auto     r = InsertIntoPool(
-                retset.data(), cur_list_size,
-                nn);  // Return position in sorted list where nn inserted.
+            auto     r = InsertIntoPool(retset.data(), cur_list_size, nn);  // Return position in sorted list where nn inserted.
             if (cur_list_size < l_search)
               ++cur_list_size;
             if (r < nk)
@@ -1046,9 +1044,7 @@ namespace diskann {
                 (cur_list_size == l_search))
               continue;
             Neighbor nn(id, dist, true);
-            auto     r = InsertIntoPool(
-                retset.data(), cur_list_size,
-                nn);  // Return position in sorted list where nn inserted.
+            auto     r = InsertIntoPool(retset.data(), cur_list_size, nn);  // Return position in sorted list where nn inserted.
             if (cur_list_size < l_search)
               ++cur_list_size;
             if (r < nk)
