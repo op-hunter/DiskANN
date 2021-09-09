@@ -1,0 +1,5 @@
+clang
+%c -std=c11
+%cc -std=c++17
+-I/home/zilliz/workspace/dev/milvus/DiskANN
+
